@@ -1,7 +1,7 @@
 use std::collections::{LinkedList, HashMap};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use {FlowId, ConformanceTime};
+use {FlowId, ConformanceTime, Result, Error};
 
 pub struct CalendarQueue<T> {
     sorter: LinkedList<Option<FlowId>>, // TODO: Collisions?
@@ -17,10 +17,14 @@ impl<T> CalendarQueue<T> {
             conformance_times: HashMap::new(),
         }
     }
-    pub fn add(&mut self, id: FlowId, conformance_time: ConformanceTime) -> Sender<T> {
-        let (sender, receiver) = channel();
-        self.flows.insert(id, receiver);
-        self.conformance_times.insert(id, conformance_time);
-        sender
+    pub fn add(&mut self, id: FlowId, conformance_time: ConformanceTime) -> Result<Sender<T>> {
+        if self.flows.contains_key(&id) {
+            Err(Error::DuplicateFlowId(id))
+        } else {
+            let (sender, receiver) = channel();
+            self.flows.insert(id, receiver);
+            self.conformance_times.insert(id, conformance_time);
+            Ok(sender)
+        }
     }
 }
