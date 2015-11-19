@@ -1,6 +1,11 @@
 [package]
 name = "calendar_queue"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Andrew Hobden <andrew@hoverbear.org>"]
+description = """
+This crate implements the idea of a 'Calendar Queue Scheduler' data structure.
+"""
+readme = "README.md"
+license = "MIT"
 
 [dependencies]

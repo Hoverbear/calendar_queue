@@ -6,21 +6,6 @@ type FlowId = u64;
 type Packet = String;
 
 #[test]
-fn queue_creation() {
-    let _ = CalendarQueue::<FlowId, Packet>::new();
-}
-
-#[test]
-fn create_single_flow() {
-    let mut queue = CalendarQueue::<FlowId, Packet>::new();
-    let flow = queue.create_channel(1, 1)
-        .unwrap();
-    // Ensure we can send.
-    flow.send("Foo".into())
-        .unwrap();
-}
-
-#[test]
 fn add_single_flow() {
     let mut queue = CalendarQueue::<FlowId, Packet>::new();
     let (sender, receiver) = std::sync::mpsc::channel();
