@@ -20,7 +20,7 @@ where I: Hash + Eq + Copy {
             conformance_times: HashMap::new(),
         }
     }
-    pub fn add(&mut self, id: I, conformance_time: ConformanceTime) -> Result<Sender<T>> {
+    pub fn create_channel(&mut self, id: I, conformance_time: ConformanceTime) -> Result<Sender<T>> {
         if self.flows.contains_key(&id) {
             Err(Error::DuplicateFlowId)
         } else {
@@ -28,6 +28,16 @@ where I: Hash + Eq + Copy {
             self.flows.insert(id, receiver);
             self.conformance_times.insert(id, conformance_time);
             Ok(sender)
+        }
+    }
+
+    pub fn add_channel(&mut self, channel: Receiver<T>, id: I, conformance_time: ConformanceTime) -> Result<()> {
+        if self.flows.contains_key(&id) {
+            Err(Error::DuplicateFlowId)
+        } else {
+            self.flows.insert(id, channel);
+            self.conformance_times.insert(id, conformance_time);
+            Ok(())
         }
     }
 }
