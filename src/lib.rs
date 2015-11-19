@@ -13,7 +13,8 @@ mod calendar_queue;
 
 pub use calendar_queue::CalendarQueue;
 
-pub type ConformanceTime = u64;
+pub type ConformanceTicks = u64;
+pub type ClockTick = u64;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, PartialEq, Eq)]
