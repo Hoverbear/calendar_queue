@@ -1,0 +1,42 @@
+# Use containers
+sudo: false
+
+# Yup we use rust.
+language: rust
+
+# Test only on nightly for now.
+rust:
+  - nightly
+
+env:
+  global:
+    - secure: M0FJjDB02sfBrrSzUOLLde8CNRNknxpM3Ikdr9psMvzZH0tM2Vu07mYqyCJrTk6cJNwxyoutYiwPtgsFhmqDC+tpQJsMXCmIwr86RvqMPddhso8/XquzwlcQGwFE9r5NDTP1ktZQUav5F7wTHwNJiJG6ZVj2nAbOrOc/2c2bQ1ABC7SRg9jXvXed1fSx0f/3mtB2a1UkI30/3nbANxDE1VZQjDAYKs/inHWuSPO6Oy/yhP6qg6S/SZIPXDFjBbaS7YeM8xvRGW031ophE5QLyarSeoi3BAhMYPxpc67ojfwHHlemjsK4LTwROXuMXIAG+GmbHmIcd8UZcCp0Ha9FNqJtsP9PCwXplhbrGkZoo2u/WAxSIRcGgqc5BhB/fMoaj+pDTp1YBppw8lNSOuibywBG5Pr6ZrAvGXTfp5Jd1wQ/rYzyF/pK6Iy2Fb2zel4IhT4BzYB5IVsRp8roPPS1hzuyo06APAPULNWWv9hHIy9UzmtKeF5uUqAyllWd87ut6Ek3CEpC7B9n9pf34HtG6RTPkQW4ERpCEsZkDKqE2SyU4jzTehoZQotOc9wWshG7VGGzTjNruMhwPRj03tyq0i2olF5ONkLOfVCfX/HYikwHsxnj98vArPJ8mtQv3iQ7EGXT9YGqtDVsnKXEoOyOnh551m+yah0JxUTcWGVbJoc=
+    - RUST_LOG=calendar_queue=debug
+    - RUST_BACKTRACE=1
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+
+# `sudo`-less apt install.
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+        # Needed for `travis-cargo coveralls --no-sudo`
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+
+# Load `travis-cargo`
+before_script:
+    - pip install 'travis-cargo' --user
+    - export PATH=$HOME/.local/bin:$PATH
+
+script:
+    - travis-cargo build
+    - travis-cargo test
+    - travis-cargo doc
+
+# Generate Docs and coverage
+after_success:
+    - travis-cargo doc-upload
+    - travis-cargo coveralls --no-sudo
