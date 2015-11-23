@@ -69,6 +69,8 @@ where I: Hash + Eq + Copy {
         } else {
             self.flows.insert(id, channel);
             self.conformance_times.insert(id, conformance_ticks);
+            let clock_time = self.clock;
+            self.schedule_flow(id, clock_time);
             Ok(())
         }
     }
@@ -79,9 +81,9 @@ where I: Hash + Eq + Copy {
             let current_clock = self.clock;
             // Get into position.
             let mut scanner = self.sorter.iter()
-                .enumerate().take_while(|&(idx, &(target, _))| target < current_clock);
+                .enumerate().take_while(|&(_, &(target, _))| target < current_clock);
             match scanner.next() {
-                Some((index, &(slot_tick, ref slots))) => {
+                Some((index, &(slot_tick, _))) => {
                     if slot_tick > target_tick {
                         SorterAction::Insert(index)
                     } else if slot_tick == target_tick {
@@ -111,6 +113,70 @@ where I: Hash + Eq + Copy {
                 self.sorter.push_back((target_tick, slots))
             }
         }
+    }
+
+    /// ```rust
+    /// use calendar_queue::CalendarQueue;
+    /// let mut queue = CalendarQueue::<u64, String>::new();
+    /// let (sender, receiver) = std::sync::mpsc::channel();
+    /// queue.add_channel(receiver, 1, 1)
+    ///     .unwrap();
+    /// sender.send("Foo".into())
+    ///     .unwrap();
+    /// assert_eq!(queue.tick(), Some("Foo".into()));
+    /// assert_eq!(queue.tick(), None);
+    /// ```
+    pub fn tick(&mut self) -> Option<T> {
+        let maybe = self.sorter.pop_front();
+        match maybe {
+            Some((clock, mut slots)) => {
+                let id = match slots.pop_front() {
+                    Some(id) => id,
+                    None => unreachable!(),
+                };
+                // Re-push the sorter slot if needed.
+                if slots.len() > 0 {
+                    self.sorter.push_front((clock, slots));
+                }
+                // Reschedule.
+                let next_time = self.conformance_times.get(&id).unwrap().clone();
+                self.schedule_flow(id, clock + next_time);
+                // Get the next item.
+                match self.flows.get(&id) {
+                    Some(flow) => flow.try_recv().ok(),
+                    None => unreachable!(),
+                }
+            },
+            None => None,
+        }
+    }
+}
+
+impl<I, T> Iterator for CalendarQueue<I, T>
+where I: Hash + Eq + Copy {
+    type Item = T;
+
+    /// ```rust
+    /// use calendar_queue::CalendarQueue;
+    /// let mut queue = CalendarQueue::<u64, String>::new();
+    /// let (sender, receiver) = std::sync::mpsc::channel();
+    /// queue.add_channel(receiver, 1, 1)
+    ///     .unwrap();
+    /// sender.send("Foo".into())
+    ///     .unwrap();
+    /// assert_eq!(queue.next(), Some("Foo".into()));
+    /// assert_eq!(queue.next(), None);
+    /// ```
+    fn next(&mut self) -> Option<T> {
+        let mut tries = 0;
+        let limit = self.flows.len();
+        while tries < limit {
+            match self.tick() {
+                Some(item) => return Some(item),
+                None => { tries += 1; continue },
+            }
+        }
+        None
     }
 }
 
