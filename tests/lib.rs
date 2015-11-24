@@ -14,6 +14,7 @@ fn add_single_flow() {
     // Ensure we can send.
     sender.send("Foo".into())
         .unwrap();
+    assert_eq!(queue.next(), Some("Foo".into()));
 }
 
 #[test]
@@ -31,13 +32,53 @@ fn colliding_flow_is_handled() {
 #[test]
 fn multi_flow() {
     let mut queue = CalendarQueue::<FlowId, Packet>::new();
-    let flow_1 = queue.create_channel(1, 1)
+    let flow_1 = queue.create_channel(1, 10)
         .unwrap();
-    let flow_2 = queue.create_channel(2, 2)
+    let flow_2 = queue.create_channel(2, 10)
         .unwrap();
     // Ensure we can send.
     flow_1.send("Foo".into())
         .unwrap();
     flow_2.send("Bar".into())
         .unwrap();
+    assert_eq!(queue.next(), Some("Foo".into()));
+    assert_eq!(queue.next(), Some("Bar".into()));
+}
+
+#[test]
+fn multi_flow_big_priority_diff() {
+    let mut queue = CalendarQueue::<FlowId, Packet>::new();
+    let flow_1 = queue.create_channel(1, 4) 
+        .unwrap();
+    let flow_2 = queue.create_channel(2, 10)
+        .unwrap();
+    // Ensure we can send.
+    flow_1.send("Foo".into())
+        .unwrap();
+    flow_2.send("Bar".into())
+        .unwrap();
+    flow_1.send("Baz".into())
+        .unwrap();
+    assert_eq!(queue.next(), Some("Foo".into()));
+    assert_eq!(queue.next(), Some("Baz".into()));
+    assert_eq!(queue.next(), Some("Bar".into()));
+}
+
+#[test]
+fn multi_flow_gaps() {
+    let mut queue = CalendarQueue::<FlowId, Packet>::new();
+    let flow_1 = queue.create_channel(1, 2) 
+        .unwrap();
+    let flow_2 = queue.create_channel(2, 10)
+        .unwrap();
+    // Ensure we can send.
+    flow_1.send("Foo".into())
+        .unwrap();
+    flow_2.send("Bar".into())
+        .unwrap();
+    flow_1.send("Baz".into())
+        .unwrap();
+    assert_eq!(queue.next(), Some("Foo".into()));
+    assert_eq!(queue.next(), Some("Baz".into()));
+    assert_eq!(queue.next(), Some("Bar".into()));
 }

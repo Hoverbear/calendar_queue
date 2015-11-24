@@ -1,11 +1,12 @@
 use std::collections::{VecDeque, HashMap};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::hash::Hash;
+use std::fmt::Debug;
 
 use {Result, Error, ClockTick, ConformanceTicks};
 
 pub struct CalendarQueue<I, T>
-where I: Hash + Eq + Copy {
+where I: Hash + Eq + Copy + Debug {
     sorter: VecDeque<(ClockTick, VecDeque<I>)>,
     flows: HashMap<I, Receiver<T>>,
     conformance_times: HashMap<I, ConformanceTicks>,
@@ -13,7 +14,7 @@ where I: Hash + Eq + Copy {
 }
 
 impl<I, T> CalendarQueue<I, T>
-where I: Hash + Eq + Copy {
+where I: Hash + Eq + Copy + Debug {
     /// ```rust
     /// use calendar_queue::CalendarQueue;
     /// let queue = CalendarQueue::<u64, String>::new();
@@ -46,6 +47,8 @@ where I: Hash + Eq + Copy {
             let (sender, receiver) = channel();
             self.flows.insert(id, receiver);
             self.conformance_times.insert(id, conformance_ticks);
+            let clock_time = self.clock;
+            self.schedule_flow(id, clock_time + conformance_ticks);
             Ok(sender)
         }
     }
@@ -70,7 +73,7 @@ where I: Hash + Eq + Copy {
             self.flows.insert(id, channel);
             self.conformance_times.insert(id, conformance_ticks);
             let clock_time = self.clock;
-            self.schedule_flow(id, clock_time);
+            self.schedule_flow(id, clock_time + conformance_ticks);
             Ok(())
         }
     }
@@ -78,10 +81,10 @@ where I: Hash + Eq + Copy {
     fn schedule_flow(&mut self, id: I, target_tick: ClockTick) {
         // Determine which action to take.
         let action = {
-            let current_clock = self.clock;
             // Get into position.
             let mut scanner = self.sorter.iter()
-                .enumerate().take_while(|&(_, &(target, _))| target < current_clock);
+                .enumerate().skip_while(|&(_, &(slot_tick, _))| slot_tick < target_tick);
+            // Determine action.
             match scanner.next() {
                 Some((index, &(slot_tick, _))) => {
                     if slot_tick > target_tick {
@@ -89,7 +92,7 @@ where I: Hash + Eq + Copy {
                     } else if slot_tick == target_tick {
                         SorterAction::Modify(index)
                     } else {
-                        unreachable!();
+                        unreachable!()
                     }
                 },
                 None => {
@@ -110,7 +113,7 @@ where I: Hash + Eq + Copy {
             SorterAction::Append => {
                 let mut slots = VecDeque::new();
                 slots.push_back(id);
-                self.sorter.push_back((target_tick, slots))
+                self.sorter.push_back((target_tick, slots));
             }
         }
     }
@@ -142,6 +145,7 @@ where I: Hash + Eq + Copy {
                 let next_time = self.conformance_times.get(&id).unwrap().clone();
                 self.schedule_flow(id, clock + next_time);
                 // Get the next item.
+                println!("Flow {:?}", id);
                 match self.flows.get(&id) {
                     Some(flow) => flow.try_recv().ok(),
                     None => unreachable!(),
@@ -153,7 +157,7 @@ where I: Hash + Eq + Copy {
 }
 
 impl<I, T> Iterator for CalendarQueue<I, T>
-where I: Hash + Eq + Copy {
+where I: Hash + Eq + Copy + Debug {
     type Item = T;
 
     /// ```rust
@@ -170,7 +174,7 @@ where I: Hash + Eq + Copy {
     fn next(&mut self) -> Option<T> {
         let mut tries = 0;
         let limit = self.flows.len();
-        while tries < limit {
+        while tries <= limit {
             match self.tick() {
                 Some(item) => return Some(item),
                 None => { tries += 1; continue },
@@ -180,6 +184,7 @@ where I: Hash + Eq + Copy {
     }
 }
 
+#[derive(Debug)]
 enum SorterAction {
     Insert(usize),
     Modify(usize),
