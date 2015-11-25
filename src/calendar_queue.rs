@@ -28,7 +28,13 @@ where I: Hash + Eq + Copy + Debug {
         }
     }
 
-    /// ## Errors
+    /// Creates a `mpsc::Sender` with the given ID that hooks into the queue.
+    ///
+    /// ### Notes
+    ///
+    /// First item will be scheduled for the end of the current time slot.
+    ///
+    /// ### Errors
     ///
     /// Will return `DuplicateFlowId` if a duplicate key is found.
     ///
@@ -49,11 +55,17 @@ where I: Hash + Eq + Copy + Debug {
             self.flows.insert(id, receiver);
             self.conformance_times.insert(id, conformance_ticks);
             let clock_time = self.clock;
-            self.schedule_flow(id, clock_time + conformance_ticks);
+            self.schedule_flow(id, clock_time);
             Ok(sender)
         }
     }
 
+    /// Hooks a `mpsc::Sender` with the given ID into the queue.
+    ///
+    /// ### Notes
+    ///
+    /// First item will be scheduled for the end of the current time slot.
+    ///
     /// ## Errors
     ///
     /// Will return `DuplicateFlowId` if a duplicate key is found.
@@ -74,7 +86,7 @@ where I: Hash + Eq + Copy + Debug {
             self.flows.insert(id, channel);
             self.conformance_times.insert(id, conformance_ticks);
             let clock_time = self.clock;
-            self.schedule_flow(id, clock_time + conformance_ticks);
+            self.schedule_flow(id, clock_time);
             Ok(())
         }
     }
@@ -123,32 +135,49 @@ where I: Hash + Eq + Copy + Debug {
     /// use calendar_queue::CalendarQueue;
     /// let mut queue = CalendarQueue::<u64, String>::new();
     /// let (sender, receiver) = std::sync::mpsc::channel();
-    /// queue.add_channel(receiver, 1, 1)
+    /// queue.add_channel(receiver, 1, 3)
     ///     .unwrap();
     /// sender.send("Foo".into())
     ///     .unwrap();
+    /// sender.send("Bar".into())
+    ///     .unwrap();
     /// assert_eq!(queue.tick(), Some("Foo".into()));
+    /// assert_eq!(queue.tick(), None);
+    /// assert_eq!(queue.tick(), None);
+    /// assert_eq!(queue.tick(), Some("Bar".into()));
+    /// assert_eq!(queue.tick(), None);
+    /// assert_eq!(queue.tick(), None);
     /// assert_eq!(queue.tick(), None);
     /// ```
     pub fn tick(&mut self) -> Option<T> {
         let maybe = self.sorter.pop_front();
         match maybe {
-            Some((clock, mut slots)) => {
-                let id = match slots.pop_front() {
-                    Some(id) => id,
-                    None => unreachable!(),
-                };
-                // Re-push the sorter slot if needed.
-                if slots.len() > 0 {
+            Some((clock, mut slots))=> {
+                if clock > self.clock {
+                    // Whoops, we're not ready for this yet.
                     self.sorter.push_front((clock, slots));
-                }
-                // Reschedule.
-                let next_time = self.conformance_times.get(&id).unwrap().clone();
-                self.schedule_flow(id, clock + next_time);
-                // Get the next item.
-                match self.flows.get(&id) {
-                    Some(flow) => flow.try_recv().ok(),
-                    None => unreachable!(),
+                    self.clock += 1; // Increment the ticks.
+                    None
+                } else {
+                    // Ready to take.
+                    let id = match slots.pop_front() {
+                        Some(id) => id,
+                        None => unreachable!(),
+                    };
+                    // Re-push the sorter slot if needed.
+                    if slots.len() > 0 {
+                        self.sorter.push_front((clock, slots));
+                    } else {
+                        self.clock += 1;
+                    }
+                    // Reschedule.
+                    let next_time = self.conformance_times.get(&id).unwrap().clone();
+                    self.schedule_flow(id, clock + next_time);
+                    // Get the next item.
+                    match self.flows.get(&id) {
+                        Some(flow) => flow.try_recv().ok(),
+                        None => unreachable!(),
+                    }
                 }
             },
             None => None,

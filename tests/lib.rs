@@ -55,19 +55,27 @@ fn multi_flow_big_priority_diff() {
         .unwrap();
     let flow_2 = queue.create_channel(2, 10)
         .unwrap();
-    // Ensure we can send.
-    flow_1.send("Foo".into())
+    // Flow 1
+    flow_1.send("1 Foo".into())
         .unwrap();
-    flow_2.send("Bar".into())
+    flow_1.send("1 Bar".into())
         .unwrap();
-    flow_1.send("Baz".into())
+    flow_1.send("1 Baz".into())
         .unwrap();
-    flow_1.send("Bat".into())
+    // Flow 2
+    flow_2.send("2 Foo".into())
         .unwrap();
-    assert_eq!(queue.next(), Some("Foo".into()));
-    assert_eq!(queue.next(), Some("Baz".into()));
-    assert_eq!(queue.next(), Some("Bar".into()));
-    assert_eq!(queue.next(), Some("Bat".into()));
+    flow_2.send("2 Bar".into())
+        .unwrap();
+    flow_2.send("2 Baz".into())
+        .unwrap();
+    assert_eq!(queue.next(), Some("1 Foo".into()));
+    assert_eq!(queue.next(), Some("2 Foo".into()));
+    assert_eq!(queue.next(), Some("1 Bar".into()));
+    assert_eq!(queue.next(), Some("1 Baz".into()));
+    assert_eq!(queue.next(), Some("2 Bar".into()));
+    // 1 exhausted.
+    assert_eq!(queue.next(), Some("2 Baz".into()));
 }
 
 // This test ensures that using `next()` will not yield `None` on gaps in the sorter.
@@ -79,16 +87,16 @@ fn multi_flow_gaps() {
     let flow_2 = queue.create_channel(2, 10)
         .unwrap();
     // Ensure we can send.
-    flow_1.send("Foo".into())
+    flow_1.send("1 Foo".into())
         .unwrap();
-    flow_2.send("Bar".into())
+    flow_1.send("1 Bar".into())
         .unwrap();
-    flow_1.send("Baz".into())
+    flow_2.send("2 Foo".into())
         .unwrap();
-    flow_2.send("Bat".into())
+    flow_2.send("2 Bar".into())
         .unwrap();
-    assert_eq!(queue.next(), Some("Foo".into()));
-    assert_eq!(queue.next(), Some("Baz".into()));
-    assert_eq!(queue.next(), Some("Bar".into()));
-    assert_eq!(queue.next(), Some("Bat".into()));
+    assert_eq!(queue.next(), Some("1 Foo".into()));
+    assert_eq!(queue.next(), Some("2 Foo".into()));
+    assert_eq!(queue.next(), Some("1 Bar".into()));
+    assert_eq!(queue.next(), Some("2 Bar".into()));
 }
