@@ -17,7 +17,7 @@ impl<I, T> CalendarQueue<I, T>
 where I: Hash + Eq + Copy + Debug {
     /// ```rust
     /// use calendar_queue::CalendarQueue;
-    /// let queue = CalendarQueue::<u64, String>::new();
+    /// let _ = CalendarQueue::<u64, String>::new();
     /// ```
     pub fn new() -> Self {
         CalendarQueue {
@@ -39,6 +39,7 @@ where I: Hash + Eq + Copy + Debug {
     ///     .unwrap();
     /// flow.send("Foo".into())
     ///     .unwrap();
+    /// assert_eq!(queue.next(), Some("Foo".into()));
     /// ```
     pub fn create_channel(&mut self, id: I, conformance_ticks: ConformanceTicks) -> Result<Sender<T>> {
         if self.flows.contains_key(&id) {
@@ -145,7 +146,6 @@ where I: Hash + Eq + Copy + Debug {
                 let next_time = self.conformance_times.get(&id).unwrap().clone();
                 self.schedule_flow(id, clock + next_time);
                 // Get the next item.
-                println!("Flow {:?}", id);
                 match self.flows.get(&id) {
                     Some(flow) => flow.try_recv().ok(),
                     None => unreachable!(),
@@ -172,15 +172,18 @@ where I: Hash + Eq + Copy + Debug {
     /// assert_eq!(queue.next(), None);
     /// ```
     fn next(&mut self) -> Option<T> {
-        let mut tries = 0;
-        let limit = self.flows.len();
-        while tries <= limit {
+        // Taking the limit from the back makes sure we only cycle over one "period" of the sorter.
+        let mut ticks = 0;
+        let limit = self.sorter.back().map(|&(time, _)| time).unwrap_or(self.clock) - self.clock;
+        loop {
             match self.tick() {
                 Some(item) => return Some(item),
-                None => { tries += 1; continue },
+                None => ticks +=1,
+            }
+            if ticks > limit {
+                return None
             }
         }
-        None
     }
 }
 
