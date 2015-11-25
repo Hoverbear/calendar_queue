@@ -100,3 +100,17 @@ fn multi_flow_gaps() {
     assert_eq!(queue.next(), Some("1 Bar".into()));
     assert_eq!(queue.next(), Some("2 Bar".into()));
 }
+
+// No point in making this a doc test, `rustdoc` doesn't show it. Even on the `impl` :(
+// Ensure ticks until it finds something.
+#[test]
+fn next_functions() {
+    let mut queue = CalendarQueue::<u64, String>::new();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    queue.add_channel(receiver, 1, 1)
+        .unwrap();
+    sender.send("Foo".into())
+        .unwrap();
+    assert_eq!(queue.next(), Some("Foo".into()));
+    assert_eq!(queue.next(), None);
+}

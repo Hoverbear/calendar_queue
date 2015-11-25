@@ -189,17 +189,7 @@ impl<I, T> Iterator for CalendarQueue<I, T>
 where I: Hash + Eq + Copy + Debug {
     type Item = T;
 
-    /// ```rust
-    /// use calendar_queue::CalendarQueue;
-    /// let mut queue = CalendarQueue::<u64, String>::new();
-    /// let (sender, receiver) = std::sync::mpsc::channel();
-    /// queue.add_channel(receiver, 1, 1)
-    ///     .unwrap();
-    /// sender.send("Foo".into())
-    ///     .unwrap();
-    /// assert_eq!(queue.next(), Some("Foo".into()));
-    /// assert_eq!(queue.next(), None);
-    /// ```
+    /// Ticks until it finds something.
     fn next(&mut self) -> Option<T> {
         // Taking the limit from the back makes sure we only cycle over one "period" of the sorter.
         let mut ticks = 0;
