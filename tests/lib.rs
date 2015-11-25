@@ -1,6 +1,7 @@
 extern crate calendar_queue;
 
 use calendar_queue::{CalendarQueue, Error};
+use std::sync::mpsc::channel;
 
 type FlowId = u64;
 type Packet = String;
@@ -8,7 +9,7 @@ type Packet = String;
 #[test]
 fn add_single_flow() {
     let mut queue = CalendarQueue::<FlowId, Packet>::new();
-    let (sender, receiver) = std::sync::mpsc::channel();
+    let (sender, receiver) = channel();
     queue.add_channel(receiver, 1, 1)
         .unwrap();
     // Ensure we can send.
@@ -106,7 +107,7 @@ fn multi_flow_gaps() {
 #[test]
 fn next_functions() {
     let mut queue = CalendarQueue::<u64, String>::new();
-    let (sender, receiver) = std::sync::mpsc::channel();
+    let (sender, receiver) = channel();
     queue.add_channel(receiver, 1, 1)
         .unwrap();
     sender.send("Foo".into())

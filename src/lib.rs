@@ -2,7 +2,6 @@
 #![crate_type="lib"]
 #![doc(html_logo_url = "")]
 #![doc(html_root_url = "https://hoverbear.github.io/calendar_queue/calendar_queue/")]
-
 //! This crate implements the idea of a "Calendar Queue Scheduler" data structure.
 //!
 //! The Calendar Queue Sheduler is an effective way to fairly receive
@@ -20,7 +19,7 @@
 //!
 //! ```text
 //!     (The Sorter)              (The flows)
-//!         +
+//!          +
 //!          |
 //!          |
 //!        +-v-+
