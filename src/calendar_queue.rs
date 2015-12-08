@@ -101,14 +101,18 @@ where I: Hash + Eq + Copy + Debug {
             match scanner.next() {
                 Some((index, &(slot_tick, _))) => {
                     if slot_tick > target_tick {
+                        // The next event for this flow goes BEFORE this index.
                         SorterAction::Insert(index)
                     } else if slot_tick == target_tick {
+                        // The next event for this flow goes INSIDE this index.
                         SorterAction::Modify(index)
                     } else {
+                        // Something terrible has happened.
                         unreachable!()
                     }
                 },
                 None => {
+                    // Th next event is also this one.
                     SorterAction::Append
                 }
             }
