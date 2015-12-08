@@ -6,6 +6,16 @@ use std::sync::mpsc::channel;
 type FlowId = u64;
 type Packet = String;
 
+// Printing the error.
+#[test]
+fn error_prints() {
+    assert_eq!(
+        format!("{:?}", Error::DuplicateFlowId),
+        "DuplicateFlowId"
+    );
+}
+
+// Basic functionality code.
 #[test]
 fn add_single_flow() {
     let mut queue = CalendarQueue::<FlowId, Packet>::new();
@@ -18,6 +28,7 @@ fn add_single_flow() {
     assert_eq!(queue.next(), Some("Foo".into()));
 }
 
+// Ensure that a colliding flow gives an error.
 #[test]
 fn colliding_flow_is_handled() {
     let mut queue = CalendarQueue::<FlowId, Packet>::new();
