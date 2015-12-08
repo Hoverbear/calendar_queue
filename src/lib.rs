@@ -53,7 +53,7 @@
 //! call tick until it has carried out an entire "cycle" and (still fairly) given every channel a
 //! chance to send, **only then** will the iterator finally exhaust.
 //!
-//! ### An Example
+//! ### A Basic Example
 //!
 //! ```rust
 //! use calendar_queue::CalendarQueue;
@@ -95,6 +95,43 @@
 //! assert_eq!(queue.next(), Some("Bar".into()));
 //! // Tick 6 now.
 //! assert_eq!(queue.tick(), Some("Foo".into()));
+//! ```
+//!
+//! ### A Router Simulator Example
+//!
+//! ```rust
+//! use calendar_queue::CalendarQueue;
+//! use std::collections::HashMap;
+//!
+//! // `id`s and `value`s are generic. Think of this as a hashmap of channels.
+//! let mut queue = CalendarQueue::<usize, usize>::new();
+//! // Create some ports with various conformance times.
+//! let times = [5, 10, 20, 40, 60];
+//! for port_num in 0..5 {
+//!     let port = queue.create_channel(port_num,  times[port_num]).unwrap();
+//!     for _ in 0..100 {
+//!         port.send(port_num).unwrap()
+//!     }
+//! }
+//! 
+//! let events = queue.take(100).fold(
+//!     HashMap::<usize, usize>::new(),
+//!     |mut acc, port| {
+//!         let exists = acc.contains_key(&port);
+//!         match exists {
+//!             true => {
+//!                 let entry = acc.get_mut(&port).unwrap();
+//!                 *entry +=1;
+//!             },
+//!             false => { acc.insert(port, 1); },
+//!         };
+//!         acc
+//!     }
+//! );
+//! assert!(events[&0] > events[&1]);
+//! assert!(events[&1] > events[&2]);
+//! assert!(events[&2] > events[&3]);
+//! assert!(events[&3] > events[&4]);
 //! ```
 
 mod calendar_queue;
