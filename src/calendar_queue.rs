@@ -9,7 +9,8 @@ pub struct CalendarQueue<I, T>
 where I: Hash + Eq + Copy + Debug {
     sorter: VecDeque<(ClockTick, VecDeque<I>)>,
     flows: HashMap<I, Receiver<T>>,
-    conformance_times: HashMap<I, ConformanceTicks>,
+    pub senders: HashMap<I, Sender<T>>,
+    pub conformance_times: HashMap<I, ConformanceTicks>,
     clock: ClockTick,
 }
 
@@ -24,6 +25,7 @@ where I: Hash + Eq + Copy + Debug {
             sorter: VecDeque::new(),
             flows: HashMap::new(),
             conformance_times: HashMap::new(),
+            senders: HashMap::new(),
             clock: 0,
         }
     }
@@ -53,6 +55,7 @@ where I: Hash + Eq + Copy + Debug {
         } else {
             let (sender, receiver) = channel();
             self.flows.insert(id, receiver);
+            self.senders.insert(id, sender.clone());
             self.conformance_times.insert(id, conformance_ticks);
             let clock_time = self.clock;
             self.schedule_flow(id, clock_time);
@@ -112,7 +115,7 @@ where I: Hash + Eq + Copy + Debug {
                     }
                 },
                 None => {
-                    // Th next event is also this one.
+                    // The next event is also this one.
                     SorterAction::Append
                 }
             }

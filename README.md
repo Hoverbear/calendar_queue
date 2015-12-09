@@ -52,6 +52,13 @@ throughout your code however you see fit. An iterator over the queue will simple
 call tick until it has carried out an entire "cycle" and (still fairly) given every channel a
 chance to send, **only then** will the iterator finally exhaust.
 
+### Setup
+
+First [install Rust & Cargo](https://doc.rust-lang.org/stable/book/installing-rust.html)
+then create a new project with `cargo new --bin foo` and add `calendar_queue = "*"`
+to your `[Dependencies]`.
+
+
 ### An Example
 
 ```rust

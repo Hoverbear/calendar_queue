@@ -8,9 +8,6 @@ use rand::distributions::{IndependentSample, Range};
 use calendar_queue::{CalendarQueue};
 use test::Bencher;
 
-const MANY_CHANNELS: u64 = 1_000;
-const SOME_CHANNELS: u64 = MANY_CHANNELS / 2;
-
 #[bench]
 fn single_channel(b: &mut Bencher) {
     let mut queue = CalendarQueue::new();
@@ -27,7 +24,7 @@ fn single_channel(b: &mut Bencher) {
 }
 
 #[bench]
-fn alternating_dual_channel(b: &mut Bencher) {
+fn colliding_dual_channel(b: &mut Bencher) {
     let mut queue = CalendarQueue::new();
     let sender_1 = queue.create_channel(1, 1)
         .unwrap();
@@ -51,15 +48,38 @@ fn alternating_dual_channel(b: &mut Bencher) {
 }
 
 #[bench]
-fn many_channels(b: &mut Bencher) {
+fn noncolliding_dual_channel(b: &mut Bencher) {
+    let mut queue = CalendarQueue::new();
+    let sender_1 = queue.create_channel(1, 2)
+        .unwrap();
+    let _ = queue.tick(); // Cause an offset.
+    let sender_2 = queue.create_channel(2, 2)
+        .unwrap();
+    sender_1.send("Foo".to_string())
+        .unwrap();
+    sender_2.send("Bar".into())
+        .unwrap();
+
+    b.iter(|| {
+        assert_eq!(queue.tick(), Some("Bar".into()));
+        // Replenish it.
+        sender_2.send("Bar".into())
+            .unwrap();
+        assert_eq!(queue.tick(), Some("Foo".into()));
+        // Replenish it.
+        sender_1.send("Foo".into())
+            .unwrap();
+    });
+}
+
+fn multi_rand_channels(channels: usize, between: Range<usize>, b: &mut Bencher) {
     let mut queue = CalendarQueue::new();
 
-    let between = Range::new(10, 500);
     let mut rng = rand::thread_rng();
 
-    let channels = (0..MANY_CHANNELS).map(|i| {
+    let channels = (0..channels).map(|i| {
         let choice = between.ind_sample(&mut rng);
-        let sender = queue.create_channel(i, choice).unwrap();
+        let sender = queue.create_channel(i, choice as u64).unwrap();
         sender.send(i).unwrap();
         sender
     }).collect::<Vec<_>>();
@@ -72,22 +92,37 @@ fn many_channels(b: &mut Bencher) {
 }
 
 #[bench]
-fn some_channels(b: &mut Bencher) {
-    let mut queue = CalendarQueue::new();
+fn multi_10_000_channels(b: &mut Bencher) {
+    let channels = 10_000;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
+}
 
-    let between = Range::new(10, 500);
-    let mut rng = rand::thread_rng();
+#[bench]
+fn multi_5_000_channels(b: &mut Bencher) {
+    let channels = 5_000;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
+}
 
-    let channels = (0..SOME_CHANNELS).map(|i| {
-        let choice = between.ind_sample(&mut rng);
-        let sender = queue.create_channel(i, choice).unwrap();
-        sender.send(i).unwrap();
-        sender
-    }).collect::<Vec<_>>();
+#[bench]
+fn multi_1_000_channels(b: &mut Bencher) {
+    let channels = 1_000;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
+}
 
+#[bench]
+fn multi_500_channels(b: &mut Bencher) {
+    let channels = 500;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
+}
 
-    b.iter(|| {
-        let i = queue.next().unwrap();
-        channels[i as usize].send(i).unwrap()
-    });
+#[bench]
+fn multi_100_channels(b: &mut Bencher) {
+    let channels = 100;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
+}
+
+#[bench]
+fn multi_50_channels(b: &mut Bencher) {
+    let channels = 50;
+    multi_rand_channels(channels, Range::new(10, channels/2), b);
 }
